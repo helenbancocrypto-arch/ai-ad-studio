@@ -53,8 +53,14 @@ def gen_script(brand, offer, audience, goal, tone, duration=30):
         {"text":"Call to Action", "sub":"Tap to try now →"},
     ]
     return {"duration": duration, "scenes": scenes}
-
-def make_slide(size, title, subtitle, logo_img=None):
+def _measure(draw, text, font):
+    """Works with both old and new Pillow versions."""
+    try:
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+        return right - left, bottom - top
+    except AttributeError:
+        return draw.textsize(text, font=font)
+def make_slide(size, title, subtitle, logo_img):
     W,H = size
     img = Image.new("RGB", size, (8,14,25))
     draw = ImageDraw.Draw(img)
@@ -64,24 +70,50 @@ def make_slide(size, title, subtitle, logo_img=None):
         b = 120 + (y % 40)
         draw.line([(0,y),(W,y)], fill=(r,g,b))
     overlay = Image.new("RGBA", size, (0,0,0,120))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    try:
-        font_title = ImageFont.truetype("arial.ttf", 72)
-        font_sub   = ImageFont.truetype("arial.ttf", 38)
-    except:
-        font_title = ImageFont.load_default()
-        font_sub   = ImageFont.load_default()
-    tw, th = draw.textsize(title, font=font_title)
-    draw.text(((W-tw)//2, H//3 - th//2), title, font=font_title, fill=(180,240,255))
-    sw, sh = draw.textsize(subtitle, font=font_sub)
-    draw.text(((W-sw)//2, H//3 + th//2 + 30), subtitle, font=font_sub, fill=(220,210,255))
-    if logo_img:
-        L = min(W//5, 320)
-        logo = logo_img.copy().convert("RGBA")
-        logo.thumbnail((L,L))
-        img.paste(logo, (W-L-40, 40), logo)
-    return img
+    # pick fonts (use TTF if available; fall back to default)
+try:try:
+    font_title = ImageFont.truetype("DejaVuSans.ttf", 56)
+    font_sub   = ImageFont.truetype("DejaVuSans.ttf", 34)
+except:
+    font_title = ImageFont.load_default()
+    font_sub   = ImageFont.load_default()
 
+# now measure with the chosen fonts
+tw, th = _measure(draw, title, font_title)
+sw, sh = _measure(draw, subtitle, font_sub)
+
+# draw text using those sizes
+draw.text(((W - tw) / 2, H / 3 - th / 2), title, font=font_title, fill=(255, 255, 255))
+draw.text(((W - sw) / 2, H / 3 + th / 2 + 30), subtitle, font=font_sub, fill=(200, 200, 200))
+
+if logo_img:
+    L = min(W / 5, 320)
+    logo = logo_img.copy().convert("RGBA")
+    logo.thumbnail((L, L))
+    img.paste(logo, (int(W - L - 40), 40), logo)
+
+return img
+    font_title = ImageFont.truetype("DejaVuSans.ttf", 56)
+    font_sub   = ImageFont.truetype("DejaVuSans.ttf", 34)
+except:
+    font_title = ImageFont.load_default()
+    font_sub   = ImageFont.load_default()
+
+# now measure with the chosen fonts
+tw, th = _measure(draw, title, font_title)
+sw, sh = _measure(draw, subtitle, font_sub)
+
+# draw text using those sizes
+draw.text(((W - tw) / 2, H / 3 - th / 2), title, font=font_title, fill=(255, 255, 255))
+draw.text(((W - sw) / 2, H / 3 + th / 2 + 30), subtitle, font=font_sub, fill=(200, 200, 200))
+
+if logo_img:
+    L = min(W / 5, 320)
+    logo = logo_img.copy().convert("RGBA")
+    logo.thumbnail((L, L))
+    img.paste(logo, (int(W - L - 40), 40), logo)
+
+return img
 def save_image(image, filename):
     buf = io.BytesIO()
     image.save(buf, format="PNG")
