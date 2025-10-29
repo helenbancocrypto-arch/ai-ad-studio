@@ -54,66 +54,55 @@ def gen_script(brand, offer, audience, goal, tone, duration=30):
     ]
     return {"duration": duration, "scenes": scenes}
 def _measure(draw, text, font):
-    """Works with both old and new Pillow versions."""
+    """Works with both old and new Pillow APIs."""
     try:
         left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
         return right - left, bottom - top
     except AttributeError:
         return draw.textsize(text, font=font)
-def make_slide(size, title, subtitle, logo_img):
-    W,H = size
-    img = Image.new("RGB", size, (8,14,25))
+
+def make_slide(size, title, subtitle, logo_img=None):
+    W, H = size
+    img = Image.new("RGB", size, (8, 14, 25))
     draw = ImageDraw.Draw(img)
+
+    # simple gradient background
     for y in range(H):
-        r = int(10 + 50*np.sin(y/140))
-        g = int(30 + 120*np.sin(y/180))
+        r = int(10 + 50 * np.sin(y / 140))
+        g = int(30 + 120 * np.sin(y / 180))
         b = 120 + (y % 40)
-        draw.line([(0,y),(W,y)], fill=(r,g,b))
-    overlay = Image.new("RGBA", size, (0,0,0,120))
-    # pick fonts (use TTF if available; fall back to default)
-try:try:
-    font_title = ImageFont.truetype("DejaVuSans.ttf", 56)
-    font_sub   = ImageFont.truetype("DejaVuSans.ttf", 34)
-except:
-    font_title = ImageFont.load_default()
-    font_sub   = ImageFont.load_default()
+        draw.line([(0, y), (W, y)], fill=(r, g, b))
 
-# now measure with the chosen fonts
-tw, th = _measure(draw, title, font_title)
-sw, sh = _measure(draw, subtitle, font_sub)
+    # dark overlay for contrast
+    overlay = Image.new("RGBA", size, (0, 0, 0, 120))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay)
+    draw = ImageDraw.Draw(img)
 
-# draw text using those sizes
-draw.text(((W - tw) / 2, H / 3 - th / 2), title, font=font_title, fill=(255, 255, 255))
-draw.text(((W - sw) / 2, H / 3 + th / 2 + 30), subtitle, font=font_sub, fill=(200, 200, 200))
+    # fonts (fallback to default if TTF not present)
+    try:
+        font_title = ImageFont.truetype("DejaVuSans.ttf", 56)
+        font_sub   = ImageFont.truetype("DejaVuSans.ttf", 34)
+    except Exception:
+        font_title = ImageFont.load_default()
+        font_sub   = ImageFont.load_default()
 
-if logo_img:
-    L = min(W / 5, 320)
-    logo = logo_img.copy().convert("RGBA")
-    logo.thumbnail((L, L))
-    img.paste(logo, (int(W - L - 40), 40), logo)
+    # measure text
+    tw, th = _measure(draw, title, font_title)
+    sw, sh = _measure(draw, subtitle, font_sub)
 
-return img
-    font_title = ImageFont.truetype("DejaVuSans.ttf", 56)
-    font_sub   = ImageFont.truetype("DejaVuSans.ttf", 34)
-except:
-    font_title = ImageFont.load_default()
-    font_sub   = ImageFont.load_default()
+    # draw text
+    draw.text(((W - tw) / 2, H / 3 - th / 2), title, font=font_title, fill=(255, 255, 255))
+    draw.text(((W - sw) / 2, H / 3 + th / 2 + 30), subtitle, font=font_sub, fill=(200, 200, 200))
 
-# now measure with the chosen fonts
-tw, th = _measure(draw, title, font_title)
-sw, sh = _measure(draw, subtitle, font_sub)
+    # optional logo (top-right)
+    if logo_img:
+        L = int(min(W / 5, 320))
+        logo = logo_img.copy().convert("RGBA")
+        logo.thumbnail((L, L))
+        img.paste(logo, (W - L - 40, 40), logo)
 
-# draw text using those sizes
-draw.text(((W - tw) / 2, H / 3 - th / 2), title, font=font_title, fill=(255, 255, 255))
-draw.text(((W - sw) / 2, H / 3 + th / 2 + 30), subtitle, font=font_sub, fill=(200, 200, 200))
+    return img.convert("RGB")
 
-if logo_img:
-    L = min(W / 5, 320)
-    logo = logo_img.copy().convert("RGBA")
-    logo.thumbnail((L, L))
-    img.paste(logo, (int(W - L - 40), 40), logo)
-
-return img
 def save_image(image, filename):
     buf = io.BytesIO()
     image.save(buf, format="PNG")
